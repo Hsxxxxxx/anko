@@ -1,0 +1,41 @@
+{
+  "name": "anko",
+  "productName": "安叩",
+  "version": "1.0.0",
+  "description": "安叩 Anko：到点轻叩，提醒喝水、护眼、起身",
+  "author": "安叩",
+  "main": "dist/main/index.js",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "npm run icon && npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "node scripts/clean.mjs && vite build",
+    "dev": "vite",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test \"testout/test/*.test.js\"",
+    "icon": "node scripts/make-icon.mjs",
+    "fetch:electron": "node --use-env-proxy --use-system-ca scripts/fetch-electron.mjs",
+    "start": "electron .",
+    "smoke": "npm run build && node scripts/smoke.mjs",
+    "dist": "npm run build && electron-builder --win --x64"
+  },
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "electron": "^45",
+    "electron-builder": "^26",
+    "pngjs": "^7",
+    "typescript": "^5",
+    "vite": "^7"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "electron@45.4.1": true
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "outDir": "testout",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src/shared/**/*.ts", "src/main/scheduler.ts", "test/**/*.ts"]
+}

@@ -1,0 +1,60 @@
+:root {
+  /* 纸面底色与墨色，克制的两级灰阶 */
+  --paper: #f2f5f4;
+  --panel: #ffffff;
+  --panel-sunk: #f6f8f7;
+  --ink: #1b2a28;
+  --ink-soft: #5d6f6b;
+  --ink-faint: #97a6a1;
+  --line: rgba(27, 42, 40, 0.09);
+  --line-soft: rgba(27, 42, 40, 0.05);
+
+  --teal: #0e7c74;
+  --teal-deep: #0a5a54;
+  --teal-tint: #e0f0ec;
+  --coral: #c8472f;
+  --coral-tint: #fae8e3;
+  --amber: #9c6b16;
+  --amber-tint: #f7efdd;
+
+  --radius: 14px;
+  --shadow-card: 0 1px 2px rgba(27, 42, 40, 0.04), 0 10px 30px rgba(27, 42, 40, 0.06);
+
+  --font-ui: "Microsoft YaHei UI", "微软雅黑", "PingFang SC", "Noto Sans CJK SC",
+    "Source Han Sans SC", system-ui, sans-serif;
+  --font-num: "Cascadia Mono", Consolas, "SFMono-Regular", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}

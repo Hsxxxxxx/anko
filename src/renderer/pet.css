@@ -1,0 +1,662 @@
+/* 桌面宠物窗口：120×140 置顶透明小窗，形象站在窗底，鼠标移上去才显示气泡 */
+
+html,
+body {
+  background: transparent;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* 挂载节点要撑满窗口，形象才能贴到窗口底边，整块区域都能拖动 */
+#root {
+  height: 100%;
+}
+
+.pet-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 头顶气泡 */
+.pet-bubble {
+  margin-top: 5px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(27, 42, 40, 0.08);
+  padding: 3px 9px 4px;
+  text-align: center;
+  line-height: 1.25;
+  position: relative;
+  min-width: 54px;
+  max-width: 104px;
+}
+
+.pet-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4.5px;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.pet-bubble-line {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.pet-bubble-line[data-tone='alert'] {
+  color: var(--coral);
+}
+
+.pet-bubble-line[data-tone='soft'] {
+  color: var(--ink-soft);
+  font-weight: 400;
+  font-size: 11.5px;
+}
+
+.pet-bubble-name {
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+}
+
+/* 小苗本体：外层负责姿态，中层负责呼吸，svg 负责成长阶段缩放 */
+.pet-shift {
+  width: 100%;
+  height: 84px;
+  margin-top: auto;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  transition: transform 0.22s ease;
+}
+
+/* 贴边收纳：形象挪到屏幕边缘，半张脸露在外面 */
+.pet-hide-left .pet-shift {
+  transform: translateX(-60px);
+}
+
+.pet-hide-right .pet-shift {
+  transform: translateX(60px);
+}
+
+.pet-character {
+  width: 84px;
+  height: 84px;
+  transform-origin: 50% 100%;
+  transition: transform 0.18s ease;
+}
+
+/* 鼠标摸一下：身体前倾，物种动作加快，腮红加深 */
+.pet-root:hover .pet-character {
+  transform: scale(1.05);
+}
+
+.pet-root:hover .pet-species-cat .pet-tail {
+  animation-duration: 1.7s;
+}
+
+.pet-root:hover .pet-species-dog .pet-tail {
+  animation-duration: 0.5s;
+}
+
+.pet-root:hover .pet-species-rabbit .pet-ear-left,
+.pet-root:hover .pet-species-rabbit .pet-ear-right {
+  animation-duration: 1.4s;
+}
+
+.pet-root:hover .pet-species-mushroom .pet-cap {
+  animation-duration: 1.5s;
+}
+
+.pet-root:hover .pet-blush {
+  opacity: 1;
+}
+
+/* 悬停时头顶装饰摆动加快，作为摸一下的反馈；放在全部状态规则之前，让状态姿态与急摆优先 */
+.pet-root:hover .pet-top {
+  animation-duration: 0.9s;
+}
+
+.pet-breathe {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+
+/* 待机：呼吸与头顶装饰轻摆 */
+.pet-idle .pet-breathe {
+  animation: pet-breathe 2.8s ease-in-out infinite;
+}
+
+.pet-idle .pet-top {
+  animation: leaf-sway 3.2s ease-in-out infinite;
+}
+
+@keyframes pet-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-1.5px) scale(1.015);
+  }
+}
+
+/* 走动：主进程逐步移动窗口，这里每步摆一下 */
+.pet-walk .pet-character {
+  animation: pet-walk 240ms ease-in-out;
+}
+
+@keyframes pet-walk {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  30% {
+    transform: rotate(5deg) translateY(-2.5px);
+  }
+  70% {
+    transform: rotate(-4deg) translateY(-1px);
+  }
+}
+
+/* 被拎起来：身体拉长、叶子乱摆，气泡收起 */
+.pet-root.pet-dragging .pet-character {
+  transform: rotate(-6deg) scale(0.92, 1.1);
+  transition: transform 0.14s ease;
+}
+
+.pet-dragging .pet-bubble {
+  opacity: 0;
+}
+
+.pet-root.pet-dragging .pet-top {
+  animation: leaf-sway 0.5s ease-in-out infinite;
+}
+
+/* 原地小跳 */
+.pet-hop .pet-character {
+  animation: pet-hop 0.55s ease-out;
+}
+
+@keyframes pet-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  30% {
+    transform: translateY(-13px) scale(1.04, 0.96);
+  }
+  60% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+  80% {
+    transform: translateY(-3px) scale(0.99, 1.01);
+  }
+}
+
+/* 完成提醒时的庆祝大跳 */
+.pet-jump .pet-character {
+  animation: pet-jump 1.15s ease-out;
+}
+
+@keyframes pet-jump {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  25% {
+    transform: translateY(-22px) scale(1.05, 0.95);
+  }
+  45% {
+    transform: translateY(-25px) scale(0.98, 1.04);
+  }
+  65% {
+    transform: translateY(0) scale(1.09, 0.9);
+  }
+  82% {
+    transform: translateY(-6px) scale(1, 1);
+  }
+}
+
+/* 提醒进行中：上下弹跳催促确认，物种动作同步加快 */
+.pet-active .pet-character {
+  animation: pet-alert 0.7s ease-in-out infinite;
+}
+
+@keyframes pet-alert {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.pet-root.pet-active .pet-species-cat .pet-tail,
+.pet-root.pet-soon .pet-species-cat .pet-tail {
+  animation-duration: 0.9s;
+}
+
+.pet-root.pet-active .pet-species-dog .pet-tail,
+.pet-root.pet-soon .pet-species-dog .pet-tail {
+  animation-duration: 0.42s;
+}
+
+.pet-root.pet-active .pet-species-rabbit .pet-ear-left,
+.pet-root.pet-soon .pet-species-rabbit .pet-ear-left,
+.pet-root.pet-active .pet-species-rabbit .pet-ear-right,
+.pet-root.pet-soon .pet-species-rabbit .pet-ear-right {
+  animation-duration: 0.9s;
+}
+
+.pet-root.pet-active .pet-species-mushroom .pet-cap,
+.pet-root.pet-soon .pet-species-mushroom .pet-cap {
+  animation: cap-bounce 0.65s ease-in-out infinite;
+}
+
+@keyframes cap-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  45% {
+    transform: translateY(-2.5px) rotate(-2deg);
+  }
+  70% {
+    transform: translateY(0.5px) rotate(1.5deg);
+  }
+}
+
+/* 活动计时中喝水：低头小口小口喝，眼睛眯起，嘴边滴一滴水 */
+.pet-root.pet-drinking .pet-character {
+  animation: pet-drink 3s ease-in-out infinite;
+}
+
+@keyframes pet-drink {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  30%,
+  55% {
+    transform: rotate(7deg) translateY(3px);
+  }
+  75% {
+    transform: rotate(2deg) translateY(1px);
+  }
+}
+
+.pet-drinking .pet-eyes {
+  animation: none;
+  transform: scaleY(0.5);
+}
+
+.pet-root.pet-drinking .pet-breathe {
+  animation: pet-breathe 3s ease-in-out infinite;
+}
+
+.pet-root.pet-drinking::after {
+  content: '';
+  position: absolute;
+  left: calc(50% + 16px);
+  bottom: 24px;
+  width: 6px;
+  height: 8px;
+  border-radius: 50% 50% 60% 60%;
+  background: var(--teal);
+  opacity: 0;
+  animation: water-drop 3s ease-in infinite;
+  pointer-events: none;
+}
+
+@keyframes water-drop {
+  0%,
+  26% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.7);
+  }
+  40% {
+    opacity: 0.85;
+    transform: translateY(0) scale(1);
+  }
+  60% {
+    opacity: 0.85;
+    transform: translateY(7px) scale(1);
+  }
+  76%,
+  100% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.6);
+  }
+}
+
+/* 活动计时中深呼吸：闭着眼，身体跟着呼吸慢慢起伏 */
+.pet-root.pet-breathing .pet-character {
+  animation: none;
+}
+
+.pet-breathing .pet-eyes {
+  animation: none;
+  transform: scaleY(0.12);
+}
+
+.pet-root.pet-breathing .pet-breathe {
+  animation: pet-deep-breathe 4s ease-in-out infinite;
+}
+
+@keyframes pet-deep-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07, 1.05) translateY(-2px);
+  }
+}
+
+/* 完成提醒后飘起的小心 */
+.pet-hearts {
+  position: absolute;
+  left: 50%;
+  bottom: 90px;
+  pointer-events: none;
+}
+
+.pet-heart {
+  position: absolute;
+  left: -5px;
+  top: 0;
+  width: 11px;
+  height: 10px;
+  opacity: 0;
+  animation: heart-rise 1.9s ease-out var(--hd, 0s) forwards;
+}
+
+.pet-heart::before,
+.pet-heart::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 5.5px;
+  height: 8.5px;
+  border-radius: 5.5px 5.5px 0 0;
+  background: var(--coral);
+}
+
+.pet-heart::before {
+  left: 0;
+  transform: rotate(-45deg);
+  transform-origin: 100% 100%;
+}
+
+.pet-heart::after {
+  left: 5.5px;
+  transform: rotate(45deg);
+  transform-origin: 0 100%;
+}
+
+@keyframes heart-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--hx, 0), -46px) scale(1.15);
+  }
+}
+
+/* 临场：眼睛睁大，头顶装饰急促摆动 */
+.pet-soon .pet-eyes {
+  transform: scale(1.18);
+}
+
+.pet-soon .pet-top {
+  animation: leaf-sway 0.7s ease-in-out infinite;
+}
+
+/* 免打扰：半闭眼，安静待着 */
+.pet-quiet .pet-eyes {
+  animation: none;
+  transform: scaleY(0.45);
+}
+
+.pet-quiet .pet-breathe {
+  animation: none;
+}
+
+/* 暂停：身体缩一下 */
+.pet-root.pet-paused .pet-character {
+  transform: scaleY(0.94);
+}
+
+/* 屏幕锁定：睡着，眼睛闭上，头顶装饰垂下，Zzz 上浮 */
+.pet-locked .pet-eyes {
+  animation: none;
+  transform: scaleY(0.12);
+}
+
+.pet-locked .pet-top {
+  transform: rotate(18deg);
+}
+
+.pet-root.pet-locked .pet-character {
+  transform: rotate(7deg) translateY(5px);
+}
+
+.pet-zzz {
+  position: absolute;
+  top: 22px;
+  right: 6px;
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  animation: zzz-float 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes zzz-float {
+  0% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-11px);
+  }
+}
+
+/* 左上角小徽标：暂停、免打扰、锁定的图形提示 */
+.pet-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgba(27, 42, 40, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pet-badge svg {
+  width: 13px;
+  height: 13px;
+  fill: var(--ink-soft);
+}
+
+.pet-bubble-name svg {
+  vertical-align: -1.5px;
+  margin-right: 3px;
+}
+
+/* 升阶演出：身体缩起闪光，换上新的阶段形象，光环与碎星同时炸开，头顶弹出新阶段名 */
+.pet-evolving .pet-breathe {
+  animation: none;
+}
+
+.pet-evolving .pet-character {
+  animation: pet-evolve 2.2s cubic-bezier(0.34, 0, 0.26, 1);
+}
+
+@keyframes pet-evolve {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  28% {
+    transform: scale(0.6);
+    filter: brightness(1.5);
+  }
+  46% {
+    transform: scale(0.56);
+    filter: brightness(2.6);
+  }
+  60% {
+    transform: scale(1.16);
+    filter: brightness(1.4);
+  }
+  76% {
+    transform: scale(0.94);
+    filter: brightness(1);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.pet-evolve-ring {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 96px;
+  height: 96px;
+  margin-left: -48px;
+  border-radius: 50%;
+  border: 2.5px solid var(--teal);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pet-evolving .pet-evolve-ring {
+  animation: evolve-ring 2.2s ease-out;
+}
+
+@keyframes evolve-ring {
+  0%,
+  42% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  54% {
+    opacity: 0.85;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.65);
+  }
+}
+
+.pet-evolve-spark {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
+  background: var(--amber);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pet-evolving .pet-evolve-spark {
+  animation: evolve-spark 2.2s ease-out;
+}
+
+@keyframes evolve-spark {
+  0%,
+  40% {
+    opacity: 0;
+    transform: translate(-50%, 0) rotate(45deg) scale(0.4);
+  }
+  52% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--sx) * 0.4), calc(var(--sy) * 0.4)) rotate(135deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--sx)), var(--sy)) rotate(220deg) scale(0.5);
+  }
+}
+
+.pet-evolve-label {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 9px 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pet-evolving .pet-evolve-label {
+  animation: evolve-label 2.2s ease-out forwards;
+}
+
+@keyframes evolve-label {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  48%,
+  78% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+}

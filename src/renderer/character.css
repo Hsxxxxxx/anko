@@ -1,0 +1,206 @@
+/* 桌面宠物形象：成长阶段缩放、眨眼与各物种专属动作，桌面窗口与主窗口共用 */
+
+.pet-stage {
+  transform-origin: 50% 100%;
+}
+
+.pet-stage-0 {
+  transform: scale(0.82);
+}
+
+.pet-stage-1 {
+  transform: scale(0.9);
+}
+
+.pet-stage-2 {
+  transform: scale(0.96);
+}
+
+.pet-stage-3 {
+  transform: scale(1);
+}
+
+.pet-stage-4 {
+  transform: scale(1.05);
+}
+
+.pet-figure {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+
+/* 主窗口的形象预览自带呼吸，画面不会呆住 */
+.app .pet-figure {
+  animation: figure-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes figure-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.2px);
+  }
+}
+
+.pet-eyes,
+.pet-top {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.pet-eyes {
+  transform-origin: center;
+  animation: pet-blink 4.6s ease-in-out infinite;
+}
+
+@keyframes pet-blink {
+  0%,
+  91%,
+  96%,
+  100% {
+    transform: scaleY(1);
+  }
+  93% {
+    transform: scaleY(0.1);
+  }
+}
+
+.pet-blush {
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+
+/* 各物种专属动作：小猫偶尔甩尾，小狗摇尾，小兔耳朵一颠一颠，小蘑菇伞盖摇摆，小苗头顶的叶子与树冠轻摆 */
+.pet-species-sprout .pet-top {
+  animation: leaf-sway 3.6s ease-in-out infinite;
+}
+
+.pet-species-sprout .pet-crown {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: crown-sway 4.4s ease-in-out infinite;
+}
+
+.pet-species-cat .pet-tail {
+  transform-box: fill-box;
+  transform-origin: 5% 90%;
+  animation: tail-flick 4.8s ease-in-out infinite;
+}
+
+.pet-species-dog .pet-tail {
+  transform-box: fill-box;
+  transform-origin: 8% 70%;
+  animation: tail-wag 1.15s ease-in-out infinite;
+}
+
+.pet-species-rabbit .pet-ear-left {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ear-bop 3.8s ease-in-out infinite;
+}
+
+.pet-species-rabbit .pet-ear-right {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ear-bop 3.8s ease-in-out infinite;
+  animation-delay: -1.9s;
+}
+
+.pet-species-rabbit .pet-tail {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+  animation: tail-bob 3.8s ease-in-out infinite;
+}
+
+.pet-species-mushroom .pet-cap {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: cap-wobble 3.6s ease-in-out infinite;
+}
+
+@keyframes leaf-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  40% {
+    transform: rotate(4deg);
+  }
+  75% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes crown-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(2.4deg);
+  }
+}
+
+@keyframes tail-flick {
+  0%,
+  82%,
+  100% {
+    transform: rotate(0deg);
+  }
+  87% {
+    transform: rotate(-16deg);
+  }
+  93% {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes tail-wag {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(16deg);
+  }
+}
+
+@keyframes ear-bop {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(-4deg);
+  }
+  60% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes tail-bob {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45% {
+    transform: scaleY(1.12);
+  }
+}
+
+@keyframes cap-wobble {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  40% {
+    transform: rotate(2.6deg);
+  }
+  75% {
+    transform: rotate(-2.2deg);
+  }
+}

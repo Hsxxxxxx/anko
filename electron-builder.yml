@@ -1,0 +1,64 @@
+appId: com.anko.app
+productName: 安叩
+copyright: 安叩
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  - from: build/icon-stage-0.png
+    to: icon-stage-0.png
+  - from: build/icon-stage-1.png
+    to: icon-stage-1.png
+  - from: build/icon-stage-2.png
+    to: icon-stage-2.png
+  - from: build/icon-stage-3.png
+    to: icon-stage-3.png
+  - from: build/icon-stage-4.png
+    to: icon-stage-4.png
+  - from: build/icon-stage-5.png
+    to: icon-stage-5.png
+  - from: build/icon-stage-6.png
+    to: icon-stage-6.png
+  - from: build/icon-stage-7.png
+    to: icon-stage-7.png
+  - from: build/icon-stage-8.png
+    to: icon-stage-8.png
+
+asar: true
+
+artifactName: ${productName}-${version}-绿色版.${ext}
+
+win:
+  executableName: ankou
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  artifactName: ${productName}-${version}-安装包.${ext}
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 安叩
+  installerLanguages:
+    - zh_CN
+  language: '2052'
+
+portable:
+  artifactName: ${productName}-${version}-单文件绿色版.${ext}
