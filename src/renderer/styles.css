@@ -911,3 +911,38 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* 应用内提醒层：Android WebView 用全屏框架嵌入提醒页 */
+.inapp-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--paper);
+  z-index: 90;
+}
+
+/* 手机竖屏：主窗口保持完整布局，提醒项列表横向滑动 */
+@media (max-width: 760px) {
+  .app {
+    padding: 16px 14px 30px;
+  }
+
+  .rows {
+    overflow-x: auto;
+  }
+
+  .row {
+    min-width: 660px;
+  }
+
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

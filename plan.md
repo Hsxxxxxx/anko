@@ -27,6 +27,7 @@ Electron + React + TypeScript + electron-builder。
 | 形象分阶段重绘与交互 | 五个形象的五个成长阶段各自绘制、物种招牌动作、悬停反馈、升阶庆祝、完成统计弹跳、冒烟升阶断言 | 本轮串行完成，全部通过类型检查、单元测试与冒烟后重新打包 |
 | 全屏避让与锁屏识别 | PowerShell 全屏探针（物理像素矩形与锁屏进程识别）、按显示器避让、调度冻结、冒烟锁屏与渲染缩放模拟门禁 | 本轮串行完成：探针正例与负例、21 项全量冒烟、125% 与 150% 渲染缩放模拟全部通过后重新打包 |
 | P1 精修 | 等待按钮填充与呼吸动画、倒计时刻度条与铃铛、页脚提醒文案、宠物饮水与深呼吸姿态、完成庆祝爱心、位置预览小屏幕、下一次提醒卡片瘦身 | 本轮串行完成，全部通过类型检查、单元测试与冒烟后重新打包 |
+| 安卓移植与发布 | Capacitor 安卓工程、WebView 内桥接（调度/设置/统计/通知）、应用内全屏提醒、后台本地通知、APK 构建、GitHub 仓库与 Release | 桥接与主进程共用 `src/shared` 全部业务规则与同一 `AnkoApi` 接口形状；APK 经 Gradle 构建产出，与 Windows 三个产物同挂 v1.0.0 Release |
 
 ## 关键设计
 
@@ -55,6 +56,7 @@ Electron + React + TypeScript + electron-builder。
 - 高 DPI：Electron 窗口按系统缩放渲染，强提醒、普通卡片、桌面宠物、快捷面板都是无边框小窗，尺寸与定位以 DIP 计算、由系统换算物理像素，125% 与 150% 缩放下文字与 SVG 保持清晰、不错位。冒烟用 `SMOKE_DPR_FORCE` 强制 `--force-device-scale-factor` 验证渲染缩放下界面按 1.25 / 1.5 的 devicePixelRatio 渲染，该模式只验证渲染（缩放开关会干扰窗口几何，位置相关步骤跳过）；真实系统缩放下的完整流程在本机 100% 下验证。
 - P1 精修：等待按钮（设了时长的「开始」）在活动走满前按剩余比例填充，剩余 10 秒内整体呼吸提示临近；强提醒标题右侧是 27 根倒计时刻度条加铃铛，文案「时间到啦，该休息咯」；强提醒页脚「太棒了！{形象} {间隔} 分钟后再来提醒你~」；桌面宠物对饮水类提醒做饮水姿态、对闭眼休息类做深呼吸姿态，完成提醒时头顶冒出爱心 2.4 秒；设置页「提醒弹出位置」行旁是一面小屏幕预览，按当前设置画出强提醒与普通卡片的落点；下一次提醒卡片瘦身为大数字加一条进度加两个按钮。
 - 调度器每秒 tick 触发 broadcastState，图标档位、托盘提示、桌面宠物都挂在这条 1 秒节奏上。
+- 安卓桥接（`src/android/bridge.ts`）：`src/shared/anko-api.ts` 定义渲染层可用的全部安叩能力，Electron preload 与桥接各自实现同一接口。桥接内按秒 tick，调度判定复用 `decideDue`/`resolveQuietWindow`；到期时主窗口内以全屏框架加载 `overlay.html`（框架内页面经 `window.parent.anko` 复用主页面的桥接，提示音由主页面统一播放，页面自身静音）；应用退到后台时为每个 24 小时内即将到期的提醒项预约一条系统本地通知（同一提醒项的通知 id 由提醒项 id 哈希固定，便于撤换），回到前台时把已到期的通知撤掉并改在应用内弹出；到期时间与暂停状态持久化到 `@capacitor/preferences`，应用被系统回收后重新打开，未到期的提醒仍按原时间到点（与主进程相同，重启前已到期的提醒从重启时刻重新计时）。设置、完成统计的落库走与主进程相同的 `normalizeSettings` 校验与统计结构。桌面宠物、多屏、托盘、全局快捷键是 Windows 专属能力，界面按 `platform` 字段隐藏对应设置项。
 - 冒烟测试通过 Chrome DevTools Protocol 驱动真实运行的程序，不使用替身对象。
 
 ## 环境记录
@@ -71,6 +73,8 @@ Electron + React + TypeScript + electron-builder。
 - 冒烟测试共用 `.smokeout` 输出目录，多轮冒烟必须串行执行；杀掉绿色版主进程前要确认子进程一并结束，否则残留进程会占用输出目录。
 - 本机为双 1920×1080 显示器（虚拟桌面 3840×1080，副屏在右），锁屏会话下部分流程无法真实驱动（光标不在桌面、提醒链路被锁屏拦截），冒烟对锁屏状态有门禁；锁屏界面（LockApp）的前台窗口进程名固定为 `LockApp`，与系统语言无关，可作为锁屏判定的稳定依据。
 - 本机会话在锁定状态下改不动系统缩放：写 LogPixels 并广播设置变更后，新进程读到的仍是 96 DPI。125% / 150% 的验证用 `--force-device-scale-factor` 模拟渲染缩放（渲染层 devicePixelRatio 变为 1.25 / 1.5，字体与 SVG 清晰度可验），窗口几何在该开关下被双重换算而失真，故位置相关步骤在该模式跳过；真实系统缩放下需要注销重登才能生效，完整流程在本机 100% 下验证。
+- 安卓构建工具链装在 `C:\android`：JDK 17（Temurin）在 `C:\android\jdk17`，Android SDK 在 `C:\android\sdk`（platform-tools、platforms;android-35、build-tools;35.0.0）。sdkmanager 拉包必须给 JVM 传代理参数（`-Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=31181`），本机代理拦截 TLS 并换用本地生成的 CA，该 CA 在 Windows 系统根证书库但不在 JDK 信任库，JDK 类工具走代理前要把这张 CA 导出后用 keytool 导入 `jdk17/lib/security/cacerts`；Gradle 则相反——代理对部分 Maven 域名黑洞化连接，依赖下载直连即可，`android/gradle.properties` 里不写代理。
+- 本机 BIOS 未开启 VT-x（i5-10500H，VirtualizationFirmwareEnabled 为 False），安卓模拟器只能纯软件模拟，速度不足以做交互测试。APK 的验证范围：Gradle 构建产出、aapt 检查包内容与 Web 产物、业务逻辑走与 Windows 版相同的已测试共享代码；真机行为（系统通知、后台保活）需要在真实安卓设备上确认。
 
 ## 本会话修复记录
 

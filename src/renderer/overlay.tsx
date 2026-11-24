@@ -6,9 +6,33 @@ import { PET_SPECIES_LABELS } from '../shared/settings';
 import { formatCountdown, remainingActivityMs } from '../shared/time';
 import { BellIcon, Glyph } from './icons';
 import { createAlerter } from './sound';
+import type { Alerter } from './sound';
 import './tokens.css';
 import './styles.css';
 import './overlay.css';
+
+/** Android 应用内弹窗以 iframe 形式嵌在主页面里，能力直接复用主页面的桥接 */
+function adoptParentBridge(): void {
+  if (window.parent !== window && window.parent.anko !== undefined) {
+    window.anko = window.parent.anko;
+  }
+}
+
+const SILENT_ALERTER: Alerter = {
+  start: (): void => undefined,
+  beepOnce: (): void => undefined,
+  ding: (): void => undefined,
+  stop: (): void => undefined,
+  setMuted: (): void => undefined,
+};
+
+/** iframe 内播放的提示音由主页面桥接统一负责，页面自身静音避免双响 */
+function createPageAlerter(): Alerter {
+  if (window.parent !== window) {
+    return SILENT_ALERTER;
+  }
+  return createAlerter();
+}
 
 const TICK_COUNT = 28;
 const FORCE_CONFIRM_SECONDS = 3;
@@ -29,7 +53,7 @@ function OverlayView(): JSX.Element {
   // 所需时长计时从用户点「开始」起算，提醒展示本身不计时
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [presentAt, setPresentAt] = useState(Date.now());
-  const alerter = useRef(createAlerter());
+  const alerter = useRef(createPageAlerter());
   const dingTimer = useRef<number | null>(null);
   const lastItemIdRef = useRef('');
   const dragRef = useRef<{ x: number; y: number } | null>(null);
@@ -85,7 +109,11 @@ function OverlayView(): JSX.Element {
         adoptPayload(initial);
       }
     });
-    window.anko.onOverlayPayload(adoptPayload);
+    window.anko.onOverlayPayload((next) => {
+      if (next !== null) {
+        adoptPayload(next);
+      }
+    });
     const timer = window.setInterval(() => setNow(clockText()), 1000);
     return () => {
       active = false;
@@ -396,4 +424,5 @@ const container = document.getElementById('root');
 if (container === null) {
   throw new Error('找不到挂载节点 #root');
 }
+adoptParentBridge();
 createRoot(container).render(<OverlayView />);

@@ -18,13 +18,21 @@
     "fetch:electron": "node --use-env-proxy --use-system-ca scripts/fetch-electron.mjs",
     "start": "electron .",
     "smoke": "npm run build && node scripts/smoke.mjs",
-    "dist": "npm run build && electron-builder --win --x64"
+    "dist": "npm run build && electron-builder --win --x64",
+    "android:build": "npm run build && npx cap sync android",
+    "android:apk": "npm run android:build && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1",
     "react": "^19",
     "react-dom": "^19"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",

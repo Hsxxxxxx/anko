@@ -1,8 +1,11 @@
-import type { AnkoApi } from '../preload/index';
+import type { AnkoApi } from '../shared/anko-api';
 
 declare global {
   interface Window {
     anko: AnkoApi;
+    Capacitor?: {
+      isNativePlatform(): boolean;
+    };
   }
 }
 

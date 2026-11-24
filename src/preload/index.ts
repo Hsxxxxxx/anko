@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { AnkoApi } from '../shared/anko-api';
 import type { AppInfo, AppState, OverlayAction, OverlayPayload, Settings } from '../shared/types';
 
-const api = {
+const api: AnkoApi = {
+  platform: 'windows',
   getSettings: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
   saveSettings: (next: Settings): Promise<Settings> => ipcRenderer.invoke('settings:save', next),
   resetSettings: (): Promise<Settings> => ipcRenderer.invoke('settings:reset'),
@@ -40,7 +42,7 @@ const api = {
       (_event, dock: { side: 'left' | 'right' | null; hidden: boolean }) => handler(dock),
     );
   },
-  onOverlayPayload: (handler: (payload: OverlayPayload) => void): void => {
+  onOverlayPayload: (handler: (payload: OverlayPayload | null) => void): void => {
     ipcRenderer.on('overlay:payload', (_event, payload: OverlayPayload) => handler(payload));
   },
   onOverlaySuppressed: (handler: (suppressed: boolean) => void): void => {
@@ -50,4 +52,4 @@ const api = {
 
 contextBridge.exposeInMainWorld('anko', api);
 
-export type AnkoApi = typeof api;
+export type { AnkoApi } from '../shared/anko-api';

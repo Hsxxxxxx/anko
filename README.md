@@ -33,6 +33,20 @@
 | 常驻托盘 | 关闭主窗口后继续在托盘运行，托盘菜单可以暂停 30 分钟、恢复、立刻提醒一次、退出 |
 | 其他 | 提示音、开机自启、启动后不显示主窗口、普通提醒自动消失时间、延后时长均可配置 |
 
+## 界面
+
+| 主窗口 | 强提醒 |
+| --- | --- |
+| ![主窗口](docs/screenshots/main.png) | ![强提醒](docs/screenshots/strong-reminder.png) |
+
+| 普通提醒卡片 | 桌面宠物升阶 |
+| --- | --- |
+| ![普通提醒卡片](docs/screenshots/normal-card.png) | ![桌面宠物升阶](docs/screenshots/pet-evolve.png) |
+
+| 设置页 | 快捷面板 |
+| --- | --- |
+| ![设置页](docs/screenshots/settings.png) | ![快捷面板](docs/screenshots/pet-panel.png) |
+
 ## Windows 使用
 
 发布目录 `release` 下有三个产物：
@@ -48,6 +62,29 @@
 未做代码签名，Windows SmartScreen 可能提示"未知发布者"，选择"更多信息 → 仍要运行"即可。
 
 设置文件保存在 `%APPDATA%\安叩\settings.json`，卸载程序不会删除它。
+
+## Android 使用
+
+Release 里附带 `anko-1.0.0-android.apk`（debug 签名），安卓 6.0 及以上设备直接安装，未上架应用商店，安装时允许「未知来源应用」。
+
+安卓版与 Windows 版共享同一套界面与业务规则：
+
+- 提醒项、免打扰时段、提示音、自动开始、延后时长等设置与 Windows 版一致，完成统计与成长形象也按同一套阶段计算
+- 应用在前台时提醒到期直接弹出全屏提醒，确认完成、延后、强制停止（二次确认）与桌面版相同
+- 应用退到后台时由系统本地通知接管提醒，点通知回到应用里处理
+- 桌面宠物、多屏定位、托盘常驻、全局快捷键是 Windows 专属能力，安卓版设置页里隐藏了这些选项，成长形象仍然保留
+
+安卓系统会回收长时间停留在后台的应用，被系统关闭后到期的提醒以系统通知形式到达。
+
+重新构建 APK 需要 JDK 17 与 Android SDK（platform 35、build-tools 35）：
+
+```bash
+npm run build        # 构建渲染层
+npx cap sync android # 同步 Web 产物与插件
+cd android && gradlew.bat assembleDebug
+```
+
+产物在 `android/app/build/outputs/apk/debug/app-debug.apk`。
 
 ## 开发
 
@@ -66,21 +103,23 @@ npm run dist         # 打包安装包与绿色版
 ## 代码结构
 
 ```
-src/shared/    平台无关的业务规则：提醒项模型、设置校验、时间与免打扰计算、调度判定、图标档位、成长阶段、弹窗位置计算
+src/shared/    平台无关的业务规则：提醒项模型、设置校验、时间与免打扰计算、调度判定、图标档位、成长阶段、弹窗位置计算、两平台共用的渲染层接口
 src/main/      Electron 主进程：窗口、托盘、调度器、强提醒弹窗、桌面宠物与快捷面板、完成统计、设置存储
 src/preload/   渲染层与主进程之间的受限接口
 src/renderer/  界面：主窗口、提醒弹窗、桌面宠物（五种形象）、快捷面板
+src/android/   安卓桥接：在 WebView 内实现与 preload 相同形状的安叩能力
+android/       Capacitor 安卓工程
 ```
 
-`src/shared` 不依赖任何平台 API，Android 版可以直接复用。
+## Android 实现
 
-## Android 移植
+安卓工程在 `android/` 目录（Capacitor 8 + Android SDK 35），WebView 加载 `src/renderer` 的构建产物。
 
-1. 用 Capacitor 新建工程，把 `src/renderer` 构建产物作为 `webDir`。
-2. `src/shared` 保持不变，渲染层通过一个与 `src/preload` 同形状的桥接对象访问原生能力：
-   - 设置存储 → `@capacitor/preferences` 替代 `src/main/store.ts` 的 JSON 文件；
-   - 提醒调度 → `@capacitor/local-notifications` 预约通知，配合前台服务保证后台不被杀；
-   - 强提醒 → 复用 `src/renderer/overlay.tsx`，在原生层用 `FLAG_SHOW_WHEN_LOCKED` / 全屏 intent 顶到最前；
-   - 桌面宠物 → 原生悬浮窗（`TYPE_APPLICATION_OVERLAY`）加载 `pet.html`；
-   - 声音 → 复用 `src/renderer/sound.ts` 的 WebAudio 合成音。
-3. 免打扰时段与倒计时逻辑由 `src/shared/time.ts` 提供，原生层只负责定时与展示。
+`src/shared` 不依赖任何平台 API，两平台直接复用。`src/shared/anko-api.ts` 定义渲染层可用的全部安叩能力，Windows 由 Electron preload 经 IPC 实现，安卓由 `src/android/bridge.ts` 在 WebView 内实现，两边同一形状：
+
+- 设置存储 → `@capacitor/preferences` 存 JSON，读取时走与主进程相同的 `normalizeSettings` 校验
+- 提醒调度 → 桥接内按秒 tick，判定逻辑复用 `src/shared/schedule.ts` 与 `src/shared/time.ts`，到期时间持久化，应用被系统关闭后重新打开，未到期的提醒仍按原时间到点
+- 前台提醒 → 主窗口内以全屏框架加载 `overlay.html`，界面、按钮、二次确认与桌面版一致；提示音复用 `src/renderer/sound.ts`
+- 后台提醒 → `@capacitor/local-notifications` 在应用退到后台时为每个即将到期的提醒项预约一条系统通知，回到前台时把已到期的通知撤掉并改在应用内弹出
+- 声音 → 强提醒循环提示音、完成叮声与桌面版同一套 WebAudio 合成
+

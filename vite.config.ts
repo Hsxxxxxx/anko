@@ -15,6 +15,7 @@ export default defineConfig({
     rollupOptions: {
       // 入口按工程目录解析，产物文件名按渲染层根目录计算
       input: {
+        index: 'src/renderer/index.html',
         main: 'src/renderer/main.html',
         overlay: 'src/renderer/overlay.html',
         pet: 'src/renderer/pet.html',

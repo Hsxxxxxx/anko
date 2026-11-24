@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, JSX } from 'react';
-import type { AppInfo, AppState, OverlayPosition, ReminderItem, ReminderStrength, Settings } from '../shared/types';
+import type {
+  AppInfo,
+  AppState,
+  OverlayPayload,
+  OverlayPosition,
+  ReminderItem,
+  ReminderStrength,
+  Settings,
+} from '../shared/types';
 import {
   createCustomItem,
   MAX_DURATION_SECONDS,
@@ -327,12 +335,20 @@ export function App(): JSX.Element {
   const [clock, setClock] = useState(clockText());
   // 主页与设置页切换，设置内容由顶栏的设置图标打开
   const [view, setView] = useState<'home' | 'settings'>('home');
+  // 提醒弹出载荷：Android 下据此在页面内弹出全屏提醒层
+  const [overlayPayload, setOverlayPayload] = useState<OverlayPayload | null>(null);
+  const isAndroid = window.anko.platform === 'android';
 
   useEffect(() => {
     void window.anko.getSettings().then(setDraft);
     void window.anko.getState().then(setAppState);
     void window.anko.getAppInfo().then(setInfo);
     window.anko.onState(setAppState);
+    if (isAndroid) {
+      // 应用内全屏提醒层是安卓形态，Windows 的弹窗由独立窗口承载
+      window.anko.onOverlayPayload(setOverlayPayload);
+      void window.anko.getOverlayPayload().then(setOverlayPayload);
+    }
     const timer = window.setInterval(() => setClock(clockText()), 1000);
     return () => window.clearInterval(timer);
   }, []);
@@ -662,7 +678,7 @@ export function App(): JSX.Element {
         <aside className="column">
           <div className="card settings-only card-pet">
             <div className="card-head">
-              <span className="eyebrow">桌面宠物</span>
+              <span className="eyebrow">{isAndroid ? '成长形象' : '桌面宠物'}</span>
               <span className="card-note">{PET_SPECIES_LABELS[draft.petType]}</span>
             </div>
             <div className="pet-preview">
@@ -858,72 +874,80 @@ export function App(): JSX.Element {
                 onToggle={() => update((previous) => ({ ...previous, autoStart: !previous.autoStart }))}
               />
             </div>
-            <div className="setting-row">
-              <div>
-                <div>桌面宠物</div>
-                <div className="setting-desc">屏幕上常驻一只会眨眼睛的小伙伴，鼠标移上去才显示气泡；可拖动、贴边收纳、偶尔在屏幕上闲逛，完成提醒会喂养它长大</div>
+            {!isAndroid ? (
+              <div className="setting-row">
+                <div>
+                  <div>桌面宠物</div>
+                  <div className="setting-desc">屏幕上常驻一只会眨眼睛的小伙伴，鼠标移上去才显示气泡；可拖动、贴边收纳、偶尔在屏幕上闲逛，完成提醒会喂养它长大</div>
+                </div>
+                <div className="setting-row-actions">
+                  {draft.showFloatingBall ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      onClick={() => void window.anko.resetPetPosition()}
+                    >
+                      重置位置
+                    </button>
+                  ) : null}
+                  <Switch
+                    on={draft.showFloatingBall}
+                    label="显示桌面宠物"
+                    onToggle={() =>
+                      update((previous) => ({ ...previous, showFloatingBall: !previous.showFloatingBall }))
+                    }
+                  />
+                </div>
               </div>
-              <div className="setting-row-actions">
-                {draft.showFloatingBall ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-small"
-                    onClick={() => void window.anko.resetPetPosition()}
-                  >
-                    重置位置
-                  </button>
-                ) : null}
+            ) : null}
+            {!isAndroid ? (
+              <div className="setting-row">
+                <div>
+                  <div>开机自动启动</div>
+                  <div className="setting-desc">登录 Windows 后自动在托盘运行</div>
+                </div>
                 <Switch
-                  on={draft.showFloatingBall}
-                  label="显示桌面宠物"
+                  on={draft.autoLaunch}
+                  label="开机自动启动"
+                  onToggle={() => {
+                    const next = !draft.autoLaunch;
+                    update((previous) => ({ ...previous, autoLaunch: next }));
+                    void window.anko.setAutoLaunch(next);
+                  }}
+                />
+              </div>
+            ) : null}
+            {!isAndroid ? (
+              <div className="setting-row">
+                <div title={draft.autoLaunch ? undefined : '需开启开机自启后生效'}>
+                  <div>启动后不显示主窗口</div>
+                  <div className="setting-desc">开机自启时只驻留托盘，不弹出主窗口</div>
+                </div>
+                <Switch
+                  on={draft.startMinimized}
+                  label="启动后不显示主窗口"
+                  disabled={draft.autoLaunch === false}
                   onToggle={() =>
-                    update((previous) => ({ ...previous, showFloatingBall: !previous.showFloatingBall }))
+                    update((previous) => ({ ...previous, startMinimized: !previous.startMinimized }))
                   }
                 />
               </div>
-            </div>
-            <div className="setting-row">
-              <div>
-                <div>开机自动启动</div>
-                <div className="setting-desc">登录 Windows 后自动在托盘运行</div>
+            ) : null}
+            {!isAndroid ? (
+              <div className="setting-row">
+                <div>
+                  <div>关闭窗口时缩到托盘</div>
+                  <div className="setting-desc">关闭主窗口后提醒继续运行</div>
+                </div>
+                <Switch
+                  on={draft.closeToTray}
+                  label="关闭窗口时缩到托盘"
+                  onToggle={() =>
+                    update((previous) => ({ ...previous, closeToTray: !previous.closeToTray }))
+                  }
+                />
               </div>
-              <Switch
-                on={draft.autoLaunch}
-                label="开机自动启动"
-                onToggle={() => {
-                  const next = !draft.autoLaunch;
-                  update((previous) => ({ ...previous, autoLaunch: next }));
-                  void window.anko.setAutoLaunch(next);
-                }}
-              />
-            </div>
-            <div className="setting-row">
-              <div title={draft.autoLaunch ? undefined : '需开启开机自启后生效'}>
-                <div>启动后不显示主窗口</div>
-                <div className="setting-desc">开机自启时只驻留托盘，不弹出主窗口</div>
-              </div>
-              <Switch
-                on={draft.startMinimized}
-                label="启动后不显示主窗口"
-                disabled={draft.autoLaunch === false}
-                onToggle={() =>
-                  update((previous) => ({ ...previous, startMinimized: !previous.startMinimized }))
-                }
-              />
-            </div>
-            <div className="setting-row">
-              <div>
-                <div>关闭窗口时缩到托盘</div>
-                <div className="setting-desc">关闭主窗口后提醒继续运行</div>
-              </div>
-              <Switch
-                on={draft.closeToTray}
-                label="关闭窗口时缩到托盘"
-                onToggle={() =>
-                  update((previous) => ({ ...previous, closeToTray: !previous.closeToTray }))
-                }
-              />
-            </div>
+            ) : null}
             <div className="setting-row">
               <div>
                 <div>普通提醒停留时间</div>
@@ -973,43 +997,45 @@ export function App(): JSX.Element {
                 分钟
               </label>
             </div>
-            <div className="setting-row">
-              <div>
-                <div>提醒弹出位置</div>
-                <div className="setting-desc">跟随提醒类型：强提醒在右上角，普通卡片在右下角；也可以放在屏幕中间或四个角落，两类弹窗一起出现在该位置</div>
+            {!isAndroid ? (
+              <div className="setting-row">
+                <div>
+                  <div>提醒弹出位置</div>
+                  <div className="setting-desc">跟随提醒类型：强提醒在右上角，普通卡片在右下角；也可以放在屏幕中间或四个角落，两类弹窗一起出现在该位置</div>
+                </div>
+                <div className="setting-row-actions">
+                  {appState?.overlayOffset === null || appState === null ? null : (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      onClick={() => void window.anko.resetOverlayPosition()}
+                    >
+                      归位
+                    </button>
+                  )}
+                  <label className="position-field">
+                    <select
+                      value={draft.overlayPosition}
+                      aria-label="提醒弹出位置"
+                      onChange={(event) =>
+                        update((previous) => ({
+                          ...previous,
+                          overlayPosition: event.target.value as OverlayPosition,
+                        }))
+                      }
+                    >
+                      <option value="auto">跟随提醒类型</option>
+                      <option value="center">屏幕中间</option>
+                      <option value="top-right">右上角</option>
+                      <option value="top-left">左上角</option>
+                      <option value="bottom-right">右下角</option>
+                      <option value="bottom-left">左下角</option>
+                    </select>
+                  </label>
+                  <PositionPreview position={draft.overlayPosition} />
+                </div>
               </div>
-              <div className="setting-row-actions">
-                {appState?.overlayOffset === null || appState === null ? null : (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-small"
-                    onClick={() => void window.anko.resetOverlayPosition()}
-                  >
-                    归位
-                  </button>
-                )}
-                <label className="position-field">
-                  <select
-                    value={draft.overlayPosition}
-                    aria-label="提醒弹出位置"
-                    onChange={(event) =>
-                      update((previous) => ({
-                        ...previous,
-                        overlayPosition: event.target.value as OverlayPosition,
-                      }))
-                    }
-                  >
-                    <option value="auto">跟随提醒类型</option>
-                    <option value="center">屏幕中间</option>
-                    <option value="top-right">右上角</option>
-                    <option value="top-left">左上角</option>
-                    <option value="bottom-right">右下角</option>
-                    <option value="bottom-left">左下角</option>
-                  </select>
-                </label>
-                <PositionPreview position={draft.overlayPosition} />
-              </div>
-            </div>
+            ) : null}
             <div className="setting-row">
               <div>
                 <div>恢复默认设置</div>
@@ -1032,6 +1058,10 @@ export function App(): JSX.Element {
           </div>
         </aside>
       </div>
+
+      {isAndroid && overlayPayload !== null ? (
+        <iframe className="inapp-overlay" src="overlay.html" title="提醒" />
+      ) : null}
 
       <footer className="footer">
         <span>
