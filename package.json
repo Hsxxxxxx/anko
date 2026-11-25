@@ -19,6 +19,7 @@
     "start": "electron .",
     "smoke": "npm run build && node scripts/smoke.mjs",
     "dist": "npm run build && electron-builder --win --x64",
+    "publish:release": "node scripts/publish.mjs",
     "android:build": "npm run build && npx cap sync android",
     "android:apk": "npm run android:build && cd android && gradlew.bat assembleDebug"
   },
