@@ -19,8 +19,23 @@ apply from: "variables.gradle"
 
 allprojects {
     repositories {
+        // 本机 Maven 镜像：网络不稳时预取 AGP 所需的 com-intellij 大 jar（kotlin-compiler、intellij-core）
+        maven { url 'file:///C:/android/local-m2' }
         google()
         mavenCentral()
+    }
+}
+
+// 所有子模块统一用 JDK 21 工具链编译（capacitor 插件只设了 sourceCompatibility 21，
+// 未声明 jvmToolchain，默认落到 Gradle daemon 的 JDK 17 上会报"无效源发行版 21"）
+subprojects {
+    afterEvaluate { proj ->
+        def javaExt = proj.extensions.findByName('java')
+        if (javaExt != null) {
+            javaExt.toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+            }
+        }
     }
 }
 

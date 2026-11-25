@@ -65,7 +65,7 @@
 
 ## Android 使用
 
-Release 里附带 `anko-1.0.0-android.apk`（debug 签名），安卓 6.0 及以上设备直接安装，未上架应用商店，安装时允许「未知来源应用」。
+Release 里附带 `anko-1.0.0-android.apk`（debug 签名），安卓 7.0 及以上设备直接安装，未上架应用商店，安装时允许「未知来源应用」。
 
 安卓版与 Windows 版共享同一套界面与业务规则：
 
