@@ -1,0 +1,550 @@
+/* ===== 手机形态：只在 .app.mobile 下生效（安卓 WebView 按平台添加），桌面窗口不受影响 ===== */
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+.app.mobile {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+
+/* 顶栏：系统状态栏已显示时间，页内时钟与副标题收掉 */
+.app.mobile .topbar {
+  gap: 10px;
+  padding: 0 16px 12px;
+  border-bottom: none;
+}
+
+.app.mobile .brand {
+  gap: 8px;
+}
+
+.app.mobile .brand-name {
+  font-size: 18px;
+}
+
+.app.mobile .brand-sub {
+  display: none;
+}
+
+.app.mobile .clock {
+  display: none;
+}
+
+.app.mobile .pill {
+  padding: 5px 11px;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.app.mobile .m-nav-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  flex: none;
+}
+
+.app.mobile .m-nav-btn:active {
+  background: var(--panel-sunk);
+}
+
+.app.mobile .notice {
+  margin: 0 16px 4px;
+  font-size: 13.5px;
+}
+
+/* 单列卡片流 */
+.m-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px 0;
+  min-width: 0;
+}
+
+.app.mobile .card {
+  border-radius: 16px;
+  border-color: var(--line-soft);
+  box-shadow: 0 1px 2px rgba(27, 42, 40, 0.04);
+}
+
+.app.mobile .card-head {
+  padding: 13px 16px;
+}
+
+.app.mobile .eyebrow {
+  letter-spacing: 0.14em;
+}
+
+.app.mobile .card-note {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+/* 下一次提醒：整屏最重要的一张卡 */
+.m-hero-card {
+  padding: 20px 18px 18px;
+  text-align: center;
+  background:
+    radial-gradient(140% 90% at 50% -20%, rgba(14, 124, 116, 0.07), transparent 60%),
+    var(--panel);
+}
+
+.m-hero-eyebrow {
+  display: inline-block;
+}
+
+.m-hero-value {
+  margin: 8px 0 4px;
+  font-size: 58px;
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.m-hero-meta {
+  font-size: 14.5px;
+  color: var(--ink-soft);
+}
+
+.m-hero-ticks-head {
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.app.mobile .m-hero-card .ticks {
+  justify-content: center;
+  height: 20px;
+  margin: 8px 0 4px;
+}
+
+.app.mobile .m-hero-card .tick {
+  width: 3px;
+  height: 7px;
+}
+
+.app.mobile .m-hero-card .tick[data-on='true'] {
+  height: 20px;
+}
+
+.m-hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.m-btn-lg {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 15.5px;
+  border-radius: 13px;
+}
+
+/* 提醒项卡片 */
+.m-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.m-item {
+  padding: 14px 16px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.m-item:first-child {
+  border-top: none;
+}
+
+.m-item-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 44px;
+}
+
+.app.mobile .switch {
+  width: 46px;
+  height: 28px;
+  border-radius: 14px;
+}
+
+.app.mobile .switch::after {
+  width: 22px;
+  height: 22px;
+  top: 3px;
+  left: 3px;
+}
+
+.app.mobile .switch[data-on='true']::after {
+  transform: translateX(18px);
+}
+
+.m-item-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.m-item[data-enabled='false'] .m-item-icon {
+  background: transparent;
+  color: var(--ink-faint);
+}
+
+.m-item[data-enabled='false'] .m-item-name {
+  color: var(--ink-faint);
+}
+
+.m-item-name {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.m-item-msg {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+}
+
+.m-item-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.m-num-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.m-num-field input {
+  width: 64px;
+  padding: 9px 8px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-family: var(--font-num);
+  font-size: 15px;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.m-num-field input::-webkit-outer-spin-button,
+.m-num-field input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.m-num-field input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-tint);
+  outline: none;
+}
+
+.app.mobile .seg {
+  border-radius: 10px;
+}
+
+.app.mobile .seg button {
+  padding: 9px 13px;
+  font-size: 13px;
+}
+
+.m-item-ops {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.m-link {
+  border: none;
+  background: transparent;
+  padding: 10px 10px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  border-radius: 9px;
+}
+
+.m-link:active {
+  background: var(--panel-sunk);
+}
+
+.m-link-danger {
+  color: var(--coral);
+}
+
+.m-item-edit {
+  margin-top: 2px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+}
+
+.m-add-wrap {
+  padding: 12px 16px 16px;
+}
+
+.m-add-btn {
+  width: 100%;
+  padding: 13px 16px;
+  font-size: 15px;
+  border-radius: 13px;
+  border-style: dashed;
+  color: var(--teal-deep);
+  border-color: rgba(14, 124, 116, 0.4);
+  background: rgba(14, 124, 116, 0.04);
+}
+
+.m-add-btn:active {
+  background: var(--teal-tint);
+}
+
+/* 接下来的提醒：整行可点的铃声按钮 */
+.m-next {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px 10px;
+}
+
+.m-next-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--line-soft);
+  min-height: 52px;
+}
+
+.m-next-row:first-child {
+  border-top: none;
+}
+
+.m-next-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14.5px;
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-next-time {
+  margin-left: auto;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  flex: none;
+}
+
+.m-next-time[data-soon='true'] {
+  color: var(--coral);
+  animation: soon-breathe 1.6s ease-in-out infinite;
+}
+
+.m-next-bell {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+}
+
+.m-next-bell:active {
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  color: var(--teal);
+}
+
+/* 完成统计 */
+.m-grove {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.m-last-done {
+  padding: 0 16px 14px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+/* 免打扰 */
+.m-quiet-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px;
+}
+
+.m-quiet-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.m-quiet-row input[type='time'] {
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid rgba(27, 42, 40, 0.24);
+  border-radius: 10px;
+  background: #f6f9f8;
+  font-family: var(--font-num);
+  font-size: 15px;
+}
+
+.m-quiet-row input[type='time']:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-tint);
+  outline: none;
+}
+
+.m-quiet-state {
+  padding: 10px 16px 14px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--line-soft);
+  margin-top: 4px;
+}
+
+.m-quiet-add {
+  padding: 8px 12px;
+  font-size: 13.5px;
+}
+
+.m-empty {
+  padding: 16px;
+  font-size: 13.5px;
+}
+
+/* 设置页 */
+.app.mobile .pet-preview {
+  padding: 14px 16px 4px;
+  gap: 14px;
+}
+
+.app.mobile .species-picker {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  padding: 10px 12px 16px;
+}
+
+.app.mobile .species-btn {
+  width: 100%;
+  padding: 9px 2px 7px;
+}
+
+.app.mobile .setting-row {
+  padding: 13px 16px;
+  font-size: 14px;
+  align-items: center;
+}
+
+.app.mobile .setting-row > div:first-child {
+  min-width: 0;
+}
+
+.app.mobile .number-field {
+  font-size: 13px;
+}
+
+.app.mobile .number-field input {
+  width: 68px;
+  padding: 10px 8px;
+  font-size: 15px;
+}
+
+.m-reset-btn {
+  padding: 9px 14px;
+  font-size: 13.5px;
+}
+
+/* 表单（添加 / 编辑提醒项） */
+.app.mobile .form {
+  padding: 14px 16px 16px;
+  border-top: none;
+  background: transparent;
+  border-radius: 0;
+}
+
+.app.mobile .form-grid {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.app.mobile .field input,
+.app.mobile .field select {
+  padding: 12px 12px;
+  font-size: 15px;
+  border-radius: 11px;
+}
+
+.app.mobile .form-actions {
+  flex-direction: column-reverse;
+  gap: 10px;
+}
+
+.app.mobile .form-actions .btn {
+  width: 100%;
+  padding: 13px 16px;
+  font-size: 15px;
+  border-radius: 13px;
+}
+
+/* 底部状态 */
+.app.mobile .footer {
+  margin: 14px 0 0;
+  padding: 8px 16px 0;
+  gap: 10px;
+  font-size: 11.5px;
+}
+
+/* 弹窗内的提醒层：全屏铺满；强提醒白底由 overlay 页面自己铺，普通提醒靠半透明压暗透出应用 */
+.app.mobile .inapp-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  z-index: 50;
+  background: transparent;
+}

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, JSX } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
+import type { PluginListenerHandle } from '@capacitor/core';
 import type {
   AppInfo,
   AppState,
   OverlayPayload,
   OverlayPosition,
+  QuietRange,
   ReminderItem,
   ReminderStrength,
   Settings,
@@ -353,6 +356,36 @@ export function App(): JSX.Element {
     return () => window.clearInterval(timer);
   }, []);
 
+  // 安卓系统返回键：强提醒忽略、普通卡片收起、设置页回主页、主页退出应用
+  const backStateRef = useRef({ view, overlayPayload });
+  backStateRef.current = { view, overlayPayload };
+  useEffect(() => {
+    if (!isAndroid) {
+      return;
+    }
+    let handle: PluginListenerHandle | null = null;
+    // 注册监听即接管系统返回键，默认退出行为由本处理函数代替
+    void CapacitorApp.addListener('backButton', () => {
+      const state = backStateRef.current;
+      if (state.overlayPayload !== null) {
+        if (!state.overlayPayload.strong) {
+          window.anko.sendOverlayAction('dismiss');
+        }
+        return;
+      }
+      if (state.view === 'settings') {
+        setView('home');
+        return;
+      }
+      void CapacitorApp.exitApp();
+    }).then((registered) => {
+      handle = registered;
+    });
+    return () => {
+      void handle?.remove();
+    };
+  }, [isAndroid]);
+
   useEffect(() => {
     if (draft === null) {
       return;
@@ -367,6 +400,98 @@ export function App(): JSX.Element {
   const update = useCallback((mutate: (previous: Settings) => Settings) => {
     setDraft((previous) => (previous === null ? previous : mutate(previous)));
   }, []);
+
+  /** 提醒项的逐行操作：桌面行与手机卡片共用同一套更新逻辑 */
+  const itemHandlers = useCallback(
+    (item: ReminderItem) => ({
+      onToggle: () =>
+        update((previous) => ({
+          ...previous,
+          items: previous.items.map((candidate) =>
+            candidate.id === item.id ? { ...candidate, enabled: !candidate.enabled } : candidate,
+          ),
+        })),
+      onIntervalChange: (value: number) =>
+        update((previous) => ({
+          ...previous,
+          items: previous.items.map((candidate) =>
+            candidate.id === item.id ? { ...candidate, intervalMinutes: value } : candidate,
+          ),
+        })),
+      onDurationChange: (value: number) =>
+        update((previous) => ({
+          ...previous,
+          items: previous.items.map((candidate) =>
+            candidate.id === item.id ? { ...candidate, durationSeconds: value } : candidate,
+          ),
+        })),
+      onStrengthChange: (strength: ReminderStrength) =>
+        update((previous) => ({
+          ...previous,
+          items: previous.items.map((candidate) =>
+            candidate.id === item.id ? { ...candidate, strength } : candidate,
+          ),
+        })),
+      onEdit: () => setEditingId(editingId === item.id ? null : item.id),
+      onDelete: () =>
+        update((previous) => ({
+          ...previous,
+          items: previous.items.filter((candidate) => candidate.id !== item.id),
+        })),
+      onSaveEdit: (value: {
+        name: string;
+        message: string;
+        intervalMinutes: number;
+        durationSeconds: number;
+        strength: ReminderStrength;
+      }) => {
+        update((previous) => ({
+          ...previous,
+          items: previous.items.map((candidate) =>
+            candidate.id === item.id
+              ? {
+                  ...candidate,
+                  name: value.name,
+                  message: value.message,
+                  intervalMinutes: value.intervalMinutes,
+                  durationSeconds: value.durationSeconds,
+                  strength: value.strength,
+                }
+              : candidate,
+          ),
+        }));
+        setEditingId(null);
+      },
+      onCancelEdit: () => setEditingId(null),
+    }),
+    [update, editingId],
+  );
+
+  /** 免打扰时段的逐行操作：桌面行与手机行共用 */
+  const rangeHandlers = useCallback(
+    (range: QuietRange) => ({
+      onStartChange: (value: string) =>
+        update((previous) => ({
+          ...previous,
+          quietRanges: previous.quietRanges.map((candidate) =>
+            candidate.id === range.id ? { ...candidate, start: value } : candidate,
+          ),
+        })),
+      onEndChange: (value: string) =>
+        update((previous) => ({
+          ...previous,
+          quietRanges: previous.quietRanges.map((candidate) =>
+            candidate.id === range.id ? { ...candidate, end: value } : candidate,
+          ),
+        })),
+      onDelete: () =>
+        update((previous) => ({
+          ...previous,
+          quietRanges: previous.quietRanges.filter((candidate) => candidate.id !== range.id),
+        })),
+    }),
+    [update],
+  );
 
   const enabledItems = useMemo(
     () => (draft?.items ?? []).filter((item) => item.enabled),
@@ -428,6 +553,367 @@ export function App(): JSX.Element {
   const stats = appState?.stats ?? { total: 0, byItem: {}, recent: [] };
   const grove = groveStageInfo(stats.total, draft.petType);
   const lastCompletion = stats.recent[0];
+
+  if (isAndroid) {
+    return (
+      <div className="app mobile" data-view={view}>
+        <header className="topbar">
+          <div className="brand">
+            <svg className="brand-fish" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+              <ellipse cx="10.56" cy="12" rx="5.04" ry="3.48" fill="currentColor" />
+              <path d="M14.4 12 18.96 8.52v6.96L14.4 12Z" fill="currentColor" />
+              <circle cx="8.4" cy="10.8" r="0.79" fill="var(--paper)" />
+              <circle cx="19.68" cy="4.8" r="1.32" fill="var(--coral)" />
+            </svg>
+            <span className="brand-name">安叩</span>
+            <span className="pill" data-tone={pillTone}>
+              {pillText}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="icon-btn m-nav-btn"
+            aria-label={view === 'home' ? '设置' : '返回主页'}
+            onClick={() => setView(view === 'home' ? 'settings' : 'home')}
+          >
+            {view === 'home' ? <GearIcon /> : <ArrowIcon />}
+          </button>
+        </header>
+
+        {appState?.notice ? <div className="notice">{appState.notice}</div> : null}
+
+        {view === 'home' ? (
+          <div className="m-stack">
+            <section className="card m-hero-card">
+              <span className="eyebrow m-hero-eyebrow">下一次提醒</span>
+              <div className="m-hero-value num">
+                {isPaused ? '暂停' : leading === undefined ? '--:--' : formatCountdown(heroRemaining)}
+              </div>
+              <div className="m-hero-meta">
+                {isPaused
+                  ? '提醒已暂停，恢复后继续计时'
+                  : leading === undefined
+                    ? '勾选至少一个提醒项'
+                    : `${leading.item.name} · ${
+                        leading.item.strength === 'strong' ? '强提醒' : '普通提醒'
+                      }`}
+              </div>
+              <div className="ticks-head m-hero-ticks-head">
+                <span>本轮进度</span>
+              </div>
+              <TickStrip progress={heroTicks} />
+              <div className="m-hero-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary m-btn-lg"
+                  onClick={() => void window.anko.previewReminder()}
+                >
+                  立即提醒一次
+                </button>
+                <button
+                  type="button"
+                  className="btn m-btn-lg"
+                  onClick={() => {
+                    if (isPaused) {
+                      void window.anko.resume();
+                    } else {
+                      void window.anko.pause(30);
+                    }
+                  }}
+                >
+                  {isPaused ? '恢复提醒' : '暂停 30 分钟'}
+                </button>
+              </div>
+            </section>
+
+            <section className="card">
+              <div className="card-head">
+                <div>
+                  <span className="eyebrow">提醒项</span>
+                  <span className="card-note">勾选 {enabledItems.length} / {draft.items.length} 项</span>
+                </div>
+              </div>
+              <ul className="m-items">
+                {draft.items.map((item) => (
+                  <MobileItem key={item.id} item={item} editing={editingId === item.id} {...itemHandlers(item)} />
+                ))}
+              </ul>
+              {adding ? (
+                <div className="m-item-edit">
+                  <ItemForm
+                    initial={{ name: '', message: '', intervalMinutes: 45, durationSeconds: 0, strength: 'normal' }}
+                    submitLabel="添加提醒项"
+                    onCancel={() => setAdding(false)}
+                    onSubmit={(value) => {
+                      if (value.name.length === 0) {
+                        return;
+                      }
+                      const created = createCustomItem(value);
+                      update((previous) => ({ ...previous, items: [...previous.items, created] }));
+                      setAdding(false);
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="m-add-wrap">
+                  <button type="button" className="btn m-add-btn" onClick={() => setAdding(true)}>
+                    添加自定义提醒项
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <section className="card">
+              <div className="card-head">
+                <span className="eyebrow">接下来的提醒</span>
+                <span className="card-note">{enabledItems.length} 项已启用</span>
+              </div>
+              {upcoming.length === 0 ? (
+                <div className="empty m-empty">没有启用的提醒项</div>
+              ) : (
+                <ul className="m-next">
+                  {upcoming.slice(0, 6).map(({ item, due }) => (
+                    <li key={item.id} className="m-next-row">
+                      <span className="m-next-name">
+                        <Glyph glyph={item.glyph} size={17} />
+                        {item.name}
+                      </span>
+                      <span className="m-next-time num" data-soon={due - now < 60_000}>
+                        {formatDuration(Math.max(0, due - now))}
+                      </span>
+                      <button
+                        type="button"
+                        className="m-next-bell"
+                        aria-label={`立即提醒一次 ${item.name}`}
+                        onClick={() => void window.anko.previewItem(item.id)}
+                      >
+                        <BellIcon size={17} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="card">
+              <div className="card-head">
+                <span className="eyebrow">完成统计</span>
+                <span className="card-note">累计 {stats.total} 次</span>
+              </div>
+              <div className={`m-grove${grovePop ? ' grove-pop' : ''}`}>
+                <PetCharacter species={draft.petType} stage={grove.index} size={60} />
+                <div className="grove-info">
+                  <div className="grove-stage">
+                    {grove.name}
+                    {grove.nextName === null || grove.nextAt === null
+                      ? ''
+                      : ` · 距${grove.nextName}还差 ${grove.nextAt - stats.total} 次`}
+                  </div>
+                  <div className="grove-bar">
+                    <span style={{ width: `${(grove.progress * 100).toFixed(1)}%` }} />
+                  </div>
+                </div>
+              </div>
+              {lastCompletion !== undefined ? (
+                <div className="m-last-done">
+                  最近完成：{lastCompletion.name} ·{' '}
+                  {new Date(lastCompletion.at).toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </div>
+              ) : null}
+            </section>
+
+            <section className="card">
+              <div className="card-head">
+                <span className="eyebrow">免打扰时段</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost m-quiet-add"
+                  onClick={() =>
+                    update((previous) => ({
+                      ...previous,
+                      quietRanges: [
+                        ...previous.quietRanges,
+                        { id: newId('quiet'), start: '22:00', end: '08:00' },
+                      ],
+                    }))
+                  }
+                >
+                  添加时段
+                </button>
+              </div>
+              {draft.quietRanges.length === 0 ? (
+                <div className="empty m-empty">还没有设置免打扰时段，提醒会在全天出现。</div>
+              ) : (
+                <ul className="m-quiet-list">
+                  {draft.quietRanges.map((range) => (
+                    <MobileQuietRange key={range.id} range={range} {...rangeHandlers(range)} />
+                  ))}
+                </ul>
+              )}
+              <div className="m-quiet-state">
+                {quietWindow.active
+                  ? `免打扰中，${new Date(quietWindow.end ?? now).toLocaleTimeString('zh-CN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })} 之后恢复提醒`
+                  : quietWindow.nextStart === null
+                    ? '没有设置免打扰时段'
+                    : `下次免打扰从 ${new Date(quietWindow.nextStart).toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })} 开始`}
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className="m-stack">
+            <section className="card">
+              <div className="card-head">
+                <span className="eyebrow">成长形象</span>
+                <span className="card-note">{PET_SPECIES_LABELS[draft.petType]}</span>
+              </div>
+              <div className="pet-preview">
+                <PetCharacter species={draft.petType} stage={grove.index} size={88} />
+                <div className="pet-preview-info">
+                  <div className="grove-stage">{grove.name}</div>
+                  <div className="setting-desc">
+                    {grove.nextAt === null
+                      ? '已经长到最高阶段，继续完成提醒陪它一起长大'
+                      : `再完成 ${grove.nextAt - stats.total} 次提醒就能长成${grove.nextName}`}
+                  </div>
+                </div>
+              </div>
+              <div className="species-picker">
+                {PET_SPECIES.map((species) => (
+                  <button
+                    key={species}
+                    type="button"
+                    className="species-btn"
+                    data-active={draft.petType === species}
+                    aria-label={`宠物形象 ${PET_SPECIES_LABELS[species]}`}
+                    onClick={() => update((previous) => ({ ...previous, petType: species }))}
+                  >
+                    <PetCharacter species={species} stage={3} size={38} />
+                    <span>{PET_SPECIES_LABELS[species]}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="card">
+              <div className="card-head">
+                <span className="eyebrow">全局设置</span>
+              </div>
+              <div className="setting-row">
+                <div>
+                  <div>提醒提示音</div>
+                  <div className="setting-desc">
+                    强提醒每 4 秒重复一次提示音；点「开始」后停止，活动计时走满时播放完成叮声
+                  </div>
+                </div>
+                <Switch
+                  on={draft.soundEnabled}
+                  label="提醒提示音"
+                  onToggle={() => update((previous) => ({ ...previous, soundEnabled: !previous.soundEnabled }))}
+                />
+              </div>
+              <div className="setting-row">
+                <div>
+                  <div>自动开始</div>
+                  <div className="setting-desc">提醒弹出后直接开始计时，不用点「开始」</div>
+                </div>
+                <Switch
+                  on={draft.autoStart}
+                  label="自动开始"
+                  onToggle={() => update((previous) => ({ ...previous, autoStart: !previous.autoStart }))}
+                />
+              </div>
+              <div className="setting-row">
+                <div>
+                  <div>普通提醒停留时间</div>
+                  <div className="setting-desc">普通提醒到点后自动消失</div>
+                </div>
+                <label className="number-field">
+                  <input
+                    type="number"
+                    min={5}
+                    max={120}
+                    step={1}
+                    value={draft.normalDismissSeconds}
+                    aria-label="普通提醒停留秒数"
+                    onChange={(event) =>
+                      update((previous) => ({
+                        ...previous,
+                        normalDismissSeconds: Math.min(
+                          120,
+                          Math.max(5, Math.round(Number(event.target.value) || 5)),
+                        ),
+                      }))
+                    }
+                  />
+                  秒
+                </label>
+              </div>
+              <div className="setting-row">
+                <div>
+                  <div>延后时长</div>
+                  <div className="setting-desc">提醒里点击延后推迟的时间</div>
+                </div>
+                <label className="number-field">
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    step={1}
+                    value={draft.snoozeMinutes}
+                    aria-label="延后分钟数"
+                    onChange={(event) =>
+                      update((previous) => ({
+                        ...previous,
+                        snoozeMinutes: Math.min(60, Math.max(1, Math.round(Number(event.target.value) || 1))),
+                      }))
+                    }
+                  />
+                  分钟
+                </label>
+              </div>
+              <div className="setting-row">
+                <div>
+                  <div>恢复默认设置</div>
+                  <div className="setting-desc">清空自定义提醒项与免打扰时段</div>
+                </div>
+                <button
+                  type="button"
+                  className="btn m-reset-btn"
+                  onClick={() => {
+                    void window.anko.resetSettings().then((next) => {
+                      setDraft(next);
+                      setAdding(false);
+                      setEditingId(null);
+                    });
+                  }}
+                >
+                  恢复默认
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {overlayPayload !== null ? <iframe className="inapp-overlay" src="overlay.html" title="提醒" /> : null}
+
+        <footer className="footer m-footer">
+          <span className="save-flag" data-dirty={saving}>
+            {saving ? '正在保存' : '已保存'}
+          </span>
+          <span>强制停止 {appState?.forcedStops ?? 0} 次</span>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="app" data-view={view}>
@@ -494,71 +980,7 @@ export function App(): JSX.Element {
 
             <ul className="rows">
               {draft.items.map((item) => (
-                <ReminderEntry
-                  key={item.id}
-                  item={item}
-                  editing={editingId === item.id}
-                  onToggle={() =>
-                    update((previous) => ({
-                      ...previous,
-                      items: previous.items.map((candidate) =>
-                        candidate.id === item.id
-                          ? { ...candidate, enabled: !candidate.enabled }
-                          : candidate,
-                      ),
-                    }))
-                  }
-                  onIntervalChange={(value) =>
-                    update((previous) => ({
-                      ...previous,
-                      items: previous.items.map((candidate) =>
-                        candidate.id === item.id ? { ...candidate, intervalMinutes: value } : candidate,
-                      ),
-                    }))
-                  }
-                  onDurationChange={(value) =>
-                    update((previous) => ({
-                      ...previous,
-                      items: previous.items.map((candidate) =>
-                        candidate.id === item.id ? { ...candidate, durationSeconds: value } : candidate,
-                      ),
-                    }))
-                  }
-                  onStrengthChange={(strength) =>
-                    update((previous) => ({
-                      ...previous,
-                      items: previous.items.map((candidate) =>
-                        candidate.id === item.id ? { ...candidate, strength } : candidate,
-                      ),
-                    }))
-                  }
-                  onEdit={() => setEditingId(editingId === item.id ? null : item.id)}
-                  onDelete={() =>
-                    update((previous) => ({
-                      ...previous,
-                      items: previous.items.filter((candidate) => candidate.id !== item.id),
-                    }))
-                  }
-                  onSaveEdit={(value) => {
-                    update((previous) => ({
-                      ...previous,
-                      items: previous.items.map((candidate) =>
-                        candidate.id === item.id
-                          ? {
-                              ...candidate,
-                              name: value.name,
-                              message: value.message,
-                              intervalMinutes: value.intervalMinutes,
-                              durationSeconds: value.durationSeconds,
-                              strength: value.strength,
-                            }
-                          : candidate,
-                      ),
-                    }));
-                    setEditingId(null);
-                  }}
-                  onCancelEdit={() => setEditingId(null)}
-                />
+                <ReminderEntry key={item.id} item={item} editing={editingId === item.id} {...itemHandlers(item)} />
               ))}
             </ul>
 
@@ -608,49 +1030,29 @@ export function App(): JSX.Element {
               <div className="empty">还没有设置免打扰时段，提醒会在全天出现。</div>
             ) : (
               <ul className="rows">
-                {draft.quietRanges.map((range) => (
-                  <li key={range.id} className="quiet-row">
-                    <input
-                      type="time"
-                      value={range.start}
-                      aria-label="开始时间"
-                      onChange={(event) =>
-                        update((previous) => ({
-                          ...previous,
-                          quietRanges: previous.quietRanges.map((candidate) =>
-                            candidate.id === range.id ? { ...candidate, start: event.target.value } : candidate,
-                          ),
-                        }))
-                      }
-                    />
-                    <span className="quiet-hint">至</span>
-                    <input
-                      type="time"
-                      value={range.end}
-                      aria-label="结束时间"
-                      onChange={(event) =>
-                        update((previous) => ({
-                          ...previous,
-                          quietRanges: previous.quietRanges.map((candidate) =>
-                            candidate.id === range.id ? { ...candidate, end: event.target.value } : candidate,
-                          ),
-                        }))
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      onClick={() =>
-                        update((previous) => ({
-                          ...previous,
-                          quietRanges: previous.quietRanges.filter((candidate) => candidate.id !== range.id),
-                        }))
-                      }
-                    >
-                      删除
-                    </button>
-                  </li>
-                ))}
+                {draft.quietRanges.map((range) => {
+                  const { onStartChange, onEndChange, onDelete } = rangeHandlers(range);
+                  return (
+                    <li key={range.id} className="quiet-row">
+                      <input
+                        type="time"
+                        value={range.start}
+                        aria-label="开始时间"
+                        onChange={(event) => onStartChange(event.target.value)}
+                      />
+                      <span className="quiet-hint">至</span>
+                      <input
+                        type="time"
+                        value={range.end}
+                        aria-label="结束时间"
+                        onChange={(event) => onEndChange(event.target.value)}
+                      />
+                      <button type="button" className="btn-danger" onClick={onDelete}>
+                        删除
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
 
@@ -1193,5 +1595,158 @@ function ReminderEntry({
         </li>
       ) : null}
     </>
+  );
+}
+
+/** 手机形态的提醒项卡片：开关、文案、间隔与强度纵向排布，触控目标不小于 44 像素 */
+function MobileItem({
+  item,
+  editing,
+  onToggle,
+  onIntervalChange,
+  onDurationChange,
+  onStrengthChange,
+  onEdit,
+  onDelete,
+  onSaveEdit,
+  onCancelEdit,
+}: {
+  item: ReminderItem;
+  editing: boolean;
+  onToggle: () => void;
+  onIntervalChange: (value: number) => void;
+  onDurationChange: (value: number) => void;
+  onStrengthChange: (strength: ReminderStrength) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onSaveEdit: (value: {
+    name: string;
+    message: string;
+    intervalMinutes: number;
+    durationSeconds: number;
+    strength: ReminderStrength;
+  }) => void;
+  onCancelEdit: () => void;
+}): JSX.Element {
+  return (
+    <li className="m-item" data-enabled={item.enabled}>
+      <div className="m-item-head">
+        <Switch on={item.enabled} onToggle={onToggle} label={`启用 ${item.name}`} />
+        <span className="m-item-icon">
+          <Glyph glyph={item.glyph} size={19} />
+        </span>
+        <span className="m-item-name">
+          {item.name}
+          {item.custom ? <span className="tag">自定义</span> : null}
+        </span>
+      </div>
+      <div className="m-item-msg">{item.message}</div>
+      <div className="m-item-controls">
+        <label className="m-num-field">
+          <span>每</span>
+          <input
+            type="number"
+            min={MIN_INTERVAL_MINUTES}
+            max={MAX_INTERVAL_MINUTES}
+            step={5}
+            value={item.intervalMinutes}
+            aria-label={`${item.name} 的提醒间隔`}
+            onChange={(event) =>
+              onIntervalChange(
+                Math.min(
+                  MAX_INTERVAL_MINUTES,
+                  Math.max(MIN_INTERVAL_MINUTES, Math.round(Number(event.target.value) || MIN_INTERVAL_MINUTES)),
+                ),
+              )
+            }
+          />
+          <span>分钟</span>
+        </label>
+        <label
+          className="m-num-field"
+          title="完成活动需要的秒数：提醒弹出后点「开始」才计时，走满后「我已完成」才可点击，0 表示不限时"
+        >
+          <span>等待</span>
+          <input
+            type="number"
+            min={MIN_DURATION_SECONDS}
+            max={MAX_DURATION_SECONDS}
+            step={1}
+            value={item.durationSeconds}
+            aria-label={`${item.name} 等待的秒数`}
+            onChange={(event) =>
+              onDurationChange(
+                Math.min(
+                  MAX_DURATION_SECONDS,
+                  Math.max(MIN_DURATION_SECONDS, Math.round(Number(event.target.value) || MIN_DURATION_SECONDS)),
+                ),
+              )
+            }
+          />
+          <span>秒</span>
+        </label>
+        <StrengthToggle value={item.strength} onChange={onStrengthChange} />
+        {item.custom ? (
+          <span className="m-item-ops">
+            <button type="button" className="m-link" onClick={onEdit}>
+              {editing ? '收起' : '编辑'}
+            </button>
+            <button type="button" className="m-link m-link-danger" onClick={onDelete}>
+              删除
+            </button>
+          </span>
+        ) : null}
+      </div>
+      {editing ? (
+        <div className="m-item-edit">
+          <ItemForm
+            initial={{
+              name: item.name,
+              message: item.message,
+              intervalMinutes: item.intervalMinutes,
+              durationSeconds: item.durationSeconds,
+              strength: item.strength,
+            }}
+            submitLabel="保存修改"
+            onCancel={onCancelEdit}
+            onSubmit={onSaveEdit}
+          />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+/** 手机形态的免打扰时段行 */
+function MobileQuietRange({
+  range,
+  onStartChange,
+  onEndChange,
+  onDelete,
+}: {
+  range: QuietRange;
+  onStartChange: (value: string) => void;
+  onEndChange: (value: string) => void;
+  onDelete: () => void;
+}): JSX.Element {
+  return (
+    <li className="m-quiet-row">
+      <input
+        type="time"
+        value={range.start}
+        aria-label="开始时间"
+        onChange={(event) => onStartChange(event.target.value)}
+      />
+      <span className="quiet-hint">至</span>
+      <input
+        type="time"
+        value={range.end}
+        aria-label="结束时间"
+        onChange={(event) => onEndChange(event.target.value)}
+      />
+      <button type="button" className="m-link m-link-danger" onClick={onDelete}>
+        删除
+      </button>
+    </li>
   );
 }

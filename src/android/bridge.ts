@@ -2,6 +2,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { createAlerter } from '../renderer/sound';
 import type { Alerter } from '../renderer/sound';
 import { decideDue, rescheduleFrom } from '../shared/schedule';
@@ -205,6 +206,10 @@ export function installAndroidBridge(): void {
       } else {
         alerter.beepOnce();
       }
+    }
+    if (payload.strong && typeof navigator.vibrate === 'function') {
+      // 强提醒叠加一段短震动，锁屏外也能感知
+      navigator.vibrate([180, 90, 180]);
     }
     emitState();
   };
@@ -457,6 +462,12 @@ export function installAndroidBridge(): void {
     startTick();
     armAudioUnlock();
     void LocalNotifications.createChannel({ id: 'anko-reminders', name: '安叩提醒' });
+    // 安卓 13+ 通知需运行时授权；被拒绝时应用内提醒照常，系统通知缺失
+    void LocalNotifications.requestPermissions().catch(() => undefined);
+    // 状态栏跟随应用浅色背景，图标用深色
+    void StatusBar.setStyle({ style: Style.Light }).then(() =>
+      StatusBar.setBackgroundColor({ color: '#f2f5f4' }),
+    );
     appStateListener = await CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         syncAfterResume();

@@ -128,7 +128,9 @@ function OverlayView(): JSX.Element {
     if (payload === null) {
       return;
     }
-    document.body.className = payload.strong ? 'overlay-body' : 'card-body';
+    // 应用内 iframe（安卓形态）额外加 mobile 类，桌面独立窗口样式保持不变
+    const embedded = window.parent !== window;
+    document.body.className = `${payload.strong ? 'overlay-body' : 'card-body'}${embedded ? ' mobile' : ''}`;
     if (!payload.soundEnabled) {
       return;
     }
